@@ -17,6 +17,7 @@
         "tsConfig": "tsconfig.app.json",
         "assets": ["src/assets"],
         "generatePackageJson": true,
+        "thirdParty": false,
         "esbuildOptions": {
           "sourcemap": true,
           "outExtension": {
@@ -27,7 +28,7 @@
       "configurations": {
         "development": {},
         "production": {
-          "generateLockfile": true,
+          "generateLockfile": false,
           "esbuildOptions": {
             "sourcemap": false,
             "outExtension": {
@@ -41,7 +42,8 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "pdf-generator:build"
+        "buildTarget": "pdf-generator:build",
+        "watch": false
       },
       "configurations": {
         "development": {
@@ -75,7 +77,7 @@
     },
     "docker-build": {
       "dependsOn": ["build"],
-      "command": "docker build -f Dockerfile . -t pdf-generator"
+      "command": "docker build -f Dockerfile . -t pdf-generator --platform=linux/x86-64"
     }
   },
   "tags": []
