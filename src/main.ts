@@ -11,10 +11,10 @@ export async function handler(event: SQSEvent) {
       "--disable-dev-shm-usage",
       "--no-sandbox",
       "--headless",
-      "--disable-setuid-sandbox",
       "--single-process",
     ],
     executablePath: executablePath(),
+    timeout: 0,
   });
 
   for (const record of event.Records) {
@@ -24,7 +24,7 @@ export async function handler(event: SQSEvent) {
     const formatted = formatString(templateRes.data, eventData.data);
 
     const page = await browser.newPage();
-    await page.setContent(formatted);
+    await page.setContent(formatted, { waitUntil: "load" });
 
     const pdfFile = await page.pdf({
       format: eventData.options.size,
