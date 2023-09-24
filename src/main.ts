@@ -1,15 +1,9 @@
-import { generateCertificate } from "./utils/helpers/generate";
 import axios from "axios";
+import { EventBody, formatString, SQSEvent } from "./utils";
 import puppeteer, { executablePath } from "puppeteer";
 
-(async () => {
-  const template = generateCertificate({
-    fullName: "festus",
-    date: "23-07-2023",
-    courseName: "Computer Science",
-  });
-
-  console.log("initialising browser");
+export async function handler(event: SQSEvent) {
+  console.log("event :: ", event);
 
   const browser = await puppeteer.launch({
     headless: "new",
@@ -17,37 +11,43 @@ import puppeteer, { executablePath } from "puppeteer";
       "--disable-dev-shm-usage",
       "--no-sandbox",
       "--headless",
-      "disable-gpu",
+      "--disable-setuid-sandbox",
+      "--single-process",
     ],
     executablePath: executablePath(),
   });
 
-  console.log("initialised browser");
+  for (const record of event.Records) {
+    const eventData = JSON.parse(record.body) as EventBody;
 
-  const page = await browser.newPage();
-  await page.setContent(template);
+    const templateRes = await axios.get(eventData.template);
+    const formatted = formatString(templateRes.data, eventData.data);
 
-  console.log("loaded content");
+    const page = await browser.newPage();
+    await page.setContent(formatted);
 
-  const pdfFile = await page.pdf({
-    format: undefined,
-    landscape: true,
-    preferCSSPageSize: true,
-    printBackground: true,
-  });
+    const pdfFile = await page.pdf({
+      format: eventData.options.size,
+      landscape: eventData.options.landScape,
+      preferCSSPageSize: true,
+      printBackground: true,
+    });
 
-  console.log("generated pdf");
+    try {
+      await axios.put(eventData.uploadUrl, pdfFile);
+    } catch (e) {
+      console.error("error uploading generated file :: ", e);
+    }
+
+    if (eventData.webhookUrl) {
+      try {
+        await axios.post(eventData.webhookUrl);
+      } catch (e) {
+        console.error("error calling webhook :: ", e);
+      }
+    }
+  }
 
   await browser.close();
-
-  console.log("closed browser");
-
-  const urlRes = await axios.put(
-    "https://api.dev.skillpaddy.com/filemanager/document?filename=another_file_12332.pdf"
-  );
-
-  const uploadData = urlRes.data.data;
-  console.log(uploadData);
-
-  await axios.put(uploadData.uploadUrl, pdfFile);
-})();
+  return { status: 200, message: "completed" };
+}

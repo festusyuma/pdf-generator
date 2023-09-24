@@ -1,30 +1,43 @@
 # Run the container with `docker run -p 3000:3000 -t pdf-generator`.
-FROM --platform=linux/x86-64 node:18-alpine
+FROM node:18-buster as build-image
 
-ENV PUPPETEER_EXECUTABLE_PATH /
+ARG FUNCTION_DIR="/function"
+
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
+
+RUN apt-get update
+RUN apt-get install -y \
+    g++ \
+    make \
+    cmake \
+    unzip \
+    libcurl4-openssl-dev
+
+RUN npm i -g pnpm
+
+RUN mkdir -p ${FUNCTION_DIR}
+RUN cd ${FUNCTION_DIR} \
+    && pnpm init \
+    && pnpm i aws-lambda-ric axios puppeteer
+
+
+# multi build to reduce size
+FROM node:18-alpine
+
+ARG FUNCTION_DIR="/function"
+ENV NPM_CONFIG_CACHE=/tmp/.npm
+
+ENV PUPPETEER_EXECUTABLE_PATH /usr/bin/chromium-browser
 
 RUN set -x
 RUN apk update
 RUN apk upgrade
-
 RUN apk add --no-cache udev ttf-freefont chromium
 
-RUN npm i -g pnpm
+COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
+COPY dist/pdf-generator/main.js ${FUNCTION_DIR}
 
-WORKDIR /app
+WORKDIR ${FUNCTION_DIR}
 
-RUN addgroup --system pdf-generator && \
-          adduser --system -G pdf-generator pdf-generator
-
-RUN chown -R pdf-generator:pdf-generator .
-
-USER pdf-generator
-
-COPY dist/pdf-generator/package.json ./
-COPY dist/pdf-generator/pnpm-lock.yaml ./
-RUN pnpm install
-
-COPY dist/pdf-generator ./
-
-#CMD [ "node", "pdf-generator" ]
+ENTRYPOINT ["/usr/local/bin/npx", "aws-lambda-ric"]
+CMD [ "main.handler" ]
