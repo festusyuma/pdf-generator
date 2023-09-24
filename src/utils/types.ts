@@ -1,5 +1,5 @@
 export type SQSEvent = {
-  Records: [{ body: string }];
+  Records: { body: string }[];
 };
 
 export type EventBody = {
