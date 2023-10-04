@@ -1,50 +1,38 @@
-import axios from "axios";
-import { EventBody, formatString, SQSEvent } from "./utils";
-import puppeteer, { executablePath } from "puppeteer";
+import { EventBody, LambdaEvent, SQSEvent } from "./utils";
+import puppeteer, { Browser, executablePath } from "puppeteer";
+import { generatePdf } from "./genrate-pdf";
 
-export async function handler(event: SQSEvent) {
+let browser: Browser;
+
+export async function handler(event: LambdaEvent) {
   console.log("event :: ", event);
 
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: [
-      "--disable-dev-shm-usage",
-      "--no-sandbox",
-      "--headless",
-      "--single-process",
-    ],
-    executablePath: executablePath(),
-    timeout: 0,
-  });
-
-  for (const record of event.Records) {
-    const eventData = JSON.parse(record.body) as EventBody;
-
-    const templateRes = await axios.get(eventData.template);
-    const formatted = formatString(templateRes.data, eventData.data);
-
-    const page = await browser.newPage();
-    await page.setContent(formatted, { waitUntil: "load" });
-
-    const pdfFile = await page.pdf({
-      format: eventData.options.size,
-      landscape: eventData.options.landScape,
-      preferCSSPageSize: true,
-      printBackground: true,
+  if (!browser) {
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--disable-dev-shm-usage",
+        "--no-sandbox",
+        "--headless",
+        "--single-process",
+      ],
+      executablePath: executablePath(),
+      timeout: 0,
     });
+  }
 
-    try {
-      await axios.put(eventData.uploadUrl, pdfFile);
-    } catch (e) {
-      console.error("error uploading generated file :: ", e);
+  if ("Records" in event) {
+    for (const record of event.Records) {
+      const eventData = JSON.parse(record.body) as EventBody;
+      await generatePdf(browser, eventData);
     }
+  } else {
+    if (event.isBase64Encoded) {
+      const eventData = JSON.parse(
+        Buffer.from(event.body, "base64").toString()
+      ) as EventBody;
 
-    if (eventData.webhookUrl) {
-      try {
-        await axios.post(eventData.webhookUrl);
-      } catch (e) {
-        console.error("error calling webhook :: ", e);
-      }
+      await generatePdf(browser, eventData);
     }
   }
 
