@@ -1,5 +1,5 @@
 import { Browser } from "puppeteer";
-import { EventBody, formatString } from "./utils";
+import { EventBody } from "./utils";
 import axios from "axios";
 import Handlebars from "handlebars";
 
