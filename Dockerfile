@@ -18,7 +18,7 @@ RUN npm i -g pnpm
 RUN mkdir -p ${FUNCTION_DIR}
 RUN cd ${FUNCTION_DIR} \
     && pnpm init \
-    && pnpm i aws-lambda-ric axios puppeteer
+    && pnpm i aws-lambda-ric axios puppeteer handlebars
 
 
 # multi build to reduce size

@@ -6,11 +6,14 @@ import Handlebars from "handlebars";
 export async function generatePdf(browser: Browser, data: EventBody) {
   try {
     const templateRes = await axios.get(data.template);
+    console.info("fetched template");
+
     const templateHs = Handlebars.compile(templateRes.data);
     const formatted = templateHs(data.data);
 
     const page = await browser.newPage();
     await page.setContent(formatted, { waitUntil: "load" });
+    console.info("loaded page");
 
     const pdfFile = await page.pdf({
       format: data.options.size,
@@ -21,6 +24,7 @@ export async function generatePdf(browser: Browser, data: EventBody) {
 
     try {
       await axios.put(data.uploadUrl, pdfFile);
+      console.info("uploaded file");
     } catch (e) {
       console.error("error uploading generated file :: ", e);
     }

@@ -39,7 +39,7 @@ export type PDFFileOptions = {
 
 export type HttpEvent = {
   body: string;
-  isBase64Encoded: true;
+  isBase64Encoded: boolean;
 };
 
 export type LambdaEvent = SQSEvent | HttpEvent;

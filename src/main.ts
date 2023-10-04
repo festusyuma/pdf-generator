@@ -1,4 +1,4 @@
-import { EventBody, LambdaEvent, SQSEvent } from "./utils";
+import { EventBody, EventData, LambdaEvent } from "./utils";
 import puppeteer, { Browser, executablePath } from "puppeteer";
 import { generatePdf } from "./genrate-pdf";
 
@@ -21,21 +21,21 @@ export async function handler(event: LambdaEvent) {
     });
   }
 
+  console.log("initialized browser");
+
   if ("Records" in event) {
     for (const record of event.Records) {
       const eventData = JSON.parse(record.body) as EventBody;
       await generatePdf(browser, eventData);
     }
-  } else {
-    if (event.isBase64Encoded) {
-      const eventData = JSON.parse(
-        Buffer.from(event.body, "base64").toString()
-      ) as EventBody;
-
-      await generatePdf(browser, eventData);
-    }
+  } else if ("isBase64Encoded" in event) {
+    const eventData = JSON.parse(
+      event.isBase64Encoded
+        ? Buffer.from(event.body, "base64").toString()
+        : event.body
+    ) as EventBody;
+    await generatePdf(browser, eventData);
   }
 
-  await browser.close();
   return { status: 200, message: "completed" };
 }
