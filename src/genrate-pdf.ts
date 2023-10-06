@@ -22,6 +22,9 @@ export async function generatePdf(browser: Browser, data: EventBody) {
       printBackground: true,
     });
 
+    await page.close();
+    console.log("closed page");
+
     try {
       await axios.put(data.uploadUrl, pdfFile);
       console.info("uploaded file");
